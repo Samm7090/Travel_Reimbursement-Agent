@@ -1,0 +1,34 @@
+[
+    {
+        "employee_id": "EMP001",
+        "trip_id": "TRIP100",
+        "stay": 120,
+        "food": 40,
+        "travel": 50,
+        "receipt_attached": true,
+        "manager_approval": false,
+        "director_approval": false
+    },
+
+    {
+        "employee_id": "EMP002",
+        "trip_id": "TRIP101",
+        "stay": 250,
+        "food": 40,
+        "travel": 90,
+        "receipt_attached": true,
+        "manager_approval": true,
+        "director_approval": false
+    },
+
+    {
+        "employee_id": "EMP003",
+        "trip_id": "TRIP102",
+        "stay": 150,
+        "food": 50,
+        "travel": 75,
+        "receipt_attached": false,
+        "manager_approval": true,
+        "director_approval": false
+    }
+]
