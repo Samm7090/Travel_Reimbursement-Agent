@@ -7,23 +7,30 @@ Categories:
 - Travel
 Any amount above the policy limit is automatically deducted from the approved amount.
 """
-
+from langchain.tools import tool
 import json
 
 with open("data/limits.json") as f:
     LIMITS = json.load(f)
 
-
-def limit_checker(claim):
+@tool
+def limit_checker(stay: float = 0, food: float = 0, travel: float = 0):
+    """
+    Checks reimbursement limits and calculates approved and rejected amounts.
+    """
 
     approved = 0
     rejected = 0
 
     violations = []
 
-    for category in ["stay", "food", "travel"]:
+    expenses = {
+        "stay": stay,
+        "food": food,
+        "travel": travel
+    }
 
-        claimed_amount = claim.get(category, 0)
+    for category,claimed_amount in expenses.items():
 
         allowed_limit = LIMITS[category]
 
@@ -41,7 +48,7 @@ def limit_checker(claim):
 
             approved += claimed_amount
 
-
+    
     return {
         "approved_amount": approved,
         "rejected_amount": rejected,

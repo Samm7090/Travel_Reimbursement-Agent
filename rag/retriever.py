@@ -21,7 +21,7 @@ embeddings=HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6
 
 vector_store=FAISS.from_documents(chunks,embeddings)
 
-retriever=vector_store.as_retriever(search_kwargs={"k":1})
+retriever=vector_store.as_retriever(search_kwargs={"k":3})
 
 print("Vector store created successfully")
 

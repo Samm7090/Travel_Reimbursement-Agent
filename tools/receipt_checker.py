@@ -7,16 +7,28 @@ Business Rule:
 
 This tool checks whether required documents have been attached to the reimbursement claim.
 """
-def receipt_checker(claim:dict) -> dict:
+from langchain.tools import tool
 
-    if claim["receipt_attached"]:
-
-        return {
+@tool
+def receipt_checker(receipt_attached: bool):
+    """
+    Checks whether a receipt is attached.
+    """
+     
+    if receipt_attached:
+        
+        result_p={
             "status": "PASS",
             "missing_documents": []
-        }
+        } 
+        
+        print(result_p)
+        return result_p 
 
-    return {
+    result_f={
         "status": "FAIL",
         "missing_documents": ["Receipt Missing"]
     }
+
+    print(result_f)
+    return result_f
