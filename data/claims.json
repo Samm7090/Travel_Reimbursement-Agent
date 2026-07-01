@@ -1,5 +1,6 @@
 [
     {
+        "claim_id": 1,
         "employee_id": "EMP001",
         "trip_id": "TRIP100",
         "stay": 120,
@@ -11,6 +12,7 @@
     },
 
     {
+        "claim_id": 2,
         "employee_id": "EMP002",
         "trip_id": "TRIP101",
         "stay": 250,
@@ -22,6 +24,7 @@
     },
 
     {
+        "claim_id": 3,
         "employee_id": "EMP003",
         "trip_id": "TRIP102",
         "stay": 150,

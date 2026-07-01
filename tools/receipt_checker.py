@@ -17,18 +17,12 @@ def receipt_checker(receipt_attached: bool):
      
     if receipt_attached:
         
-        result_p={
+        return {
             "status": "PASS",
             "missing_documents": []
         } 
-        
-        print(result_p)
-        return result_p 
 
-    result_f={
+    return {
         "status": "FAIL",
         "missing_documents": ["Receipt Missing"]
     }
-
-    print(result_f)
-    return result_f

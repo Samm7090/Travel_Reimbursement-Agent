@@ -13,8 +13,9 @@ from langgraph.graph.message import add_messages
 
 class AgentState(TypedDict):
     claim: dict
-    messages: Annotated[list[BaseMessage],add_messages]
     policy_context:str
+    messages: Annotated[list[BaseMessage],add_messages]
+    tool_results: dict
     decision:dict
     audit_log:list[str]
 

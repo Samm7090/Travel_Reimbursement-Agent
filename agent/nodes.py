@@ -4,10 +4,6 @@ LangGraph nodes used in the reimbursement workflow.
 
 from rag.retriever import retrieve_policy
 
-from tools.receipt_checker import receipt_checker
-from tools.limit_checker import limit_checker
-from tools.approval_checker import approval_checker
-
 from agent.llm import llm_with_tools
 
 #------Node-1 Retrieve Policy---------
@@ -33,63 +29,90 @@ def retreieve_policy(state):
 
 #------Node-2 Decision Node---------
 from langchain_core.messages import HumanMessage
-from agent.llm import llm_with_tools
 import json
 
 def decision_node(state):
     if not state["messages"]:
         prompt = f"""
-    You are an automated Travel Reimbursement Approval Agent.
-    Your job is to evaluate the reimbursement claim provided below.
-    
-    DO NOT ask the user for additional information.
-    DO NOT request expense amounts.
-    DO NOT request receipt status.
-    DO NOT request approval status.
+        You are an automated Travel Reimbursement Approval Agent.
 
-    Use the claim below as the source of truth.
-    Policy:{state["policy_context"]}
-    Claim:{json.dumps(state["claim"], indent=2)}
+        Your responsibility is to evaluate an employee travel reimbursement claim by using the retrieved company policy and the provided validation tools.
 
-   Before producing a final answer you MUST call all three tools.
+        Do NOT ask the user for additional information.
+        Do NOT assume missing values.
+        Use the claim below as the only source of truth.
 
-    Required tool sequence:
+        Policy:
+        {state["policy_context"]}
 
-    1. receipt_checker(receipt_attached)
-    2. limit_checker(stay, food, travel)
-    3. approval_checker(stay, food, travel, manager_approval, director_approval)
+        Claim:
+        {json.dumps(state["claim"], indent=2)}
 
-    Do not answer until all three tool results have been received.
+        Before generating the final response, you MUST execute ALL of the following tools exactly once:
 
-    Do not skip any check.
+        1. receipt_checker(receipt_attached)
+        2. limit_checker(stay, food, travel)
+        3. approval_checker(stay, food, travel, manager_approval, director_approval)
 
-    Do not ask the user for additional information.
+        Wait until all tool results are available before making any decision.
 
-    After all tool checks are completed, return a final decision.
+        Decision Rules:
 
-    Possible decisions:
-    - APPROVED
-    - PARTIALLY_APPROVED
-    - REJECTED
-    - MANUAL_REVIEW
-    """
+        1. APPROVED
+        - All required validations pass.
+        - No reimbursement amount is rejected.
+
+        2. PARTIALLY_APPROVED
+        - Some expenses exceed reimbursement limits.
+        - Part of the claim is approved and the remaining amount is rejected.
+
+        3. REJECTED
+        - The entire reimbursement claim must be rejected.
+        - Examples:
+            • Required approvals are missing.
+            • Required receipts are missing.
+            • The policy does not allow reimbursement.
+
+        4. MANUAL_REVIEW
+        - Information is incomplete.
+        - Tool results conflict.
+        - The policy cannot determine a clear decision.
+
+        IMPORTANT:
+
+        Your FIRST LINE must ALWAYS be exactly one of the following:
+
+        Decision: APPROVED
+
+        OR
+
+        Decision: PARTIALLY_APPROVED
+
+        OR
+
+        Decision: REJECTED
+
+        OR
+
+        Decision: MANUAL_REVIEW
+
+        After the decision line, provide a short explanation including:
+
+        - Receipt Status
+        - Approval Status
+        - Approved Amount
+        - Rejected Amount
+        - Policy reasoning
+        """
     
         messages = [HumanMessage(content=prompt)]
 
-    # print(prompt)
+
     else:
         messages=state["messages"]
 
     response = llm_with_tools.invoke(messages)
     
-    # print("\nTOOL CALLS:")
-    # print(response.tool_calls)
-
-    # print("\nCONTENT:")
-    # print(response.content)
-
-    # print("\nFULL RESPONSE:")
-    # print(response)
 
     return {
         "messages": [response],
@@ -98,35 +121,81 @@ def decision_node(state):
 
 #----------Node 3: Output Node--------
 from models.output_schema import DecisionOutput
+import json
+from langchain_core.messages import ToolMessage
 
 def output_node(state):
 
+    approved_amount = None
+    rejected_amount = None
+    missing_documents = []
+    policy_reference = []
+    approval_status = None
+    for message in state["messages"]:
+
+        if not isinstance(message, ToolMessage):
+            continue
+
+        data = json.loads(message.content)
+
+        if message.name == "receipt_checker":
+            missing_documents = data.get("missing_documents", [])
+
+        elif message.name == "limit_checker":
+            approved_amount = data.get("approved_amount")
+            rejected_amount = data.get("rejected_amount")
+
+        elif message.name == "approval_checker":
+            approval_status = data.get("status")
+
     final_message = state["messages"][-1].content
 
-    if "approved" in final_message.lower():
-        decision = "APPROVED"
-    elif "rejected" in final_message.lower():
-        decision = "REJECTED"
-    else:
-        decision = "MANUAL_REVIEW"
+    decision = "MANUAL_REVIEW"
 
+    if final_message:
+
+        first_line = final_message.split("\n")[0].strip().upper()
+
+        if "PARTIALLY_APPROVED" in first_line:
+            decision = "PARTIALLY_APPROVED"
+
+        elif "MANUAL_REVIEW" in first_line:
+            decision = "MANUAL_REVIEW"
+
+        elif "REJECTED" in first_line:
+            decision = "REJECTED"
+
+        elif "APPROVED" in first_line:
+            decision = "APPROVED"
+
+
+    confidence = 1.0
+
+    if missing_documents:
+        confidence -= 0.20
+
+    if approval_status == "FAIL":
+        confidence -= 0.15
+
+    if not state["policy_context"]:
+        confidence -= 0.20
+
+    if decision == "MANUAL_REVIEW":
+        confidence -= 0.20
+
+    confidence = round(max(0.0, min(confidence, 1.0)), 2)
+    
     result = DecisionOutput(
-        decision="decision",
-        approved_amount=0,
-        rejected_amount=0,
-        missing_documents=[],
-        policy_reference=[],
-        confidence=0.80,
+        decision=decision,
+        approved_amount=approved_amount,
+        rejected_amount=rejected_amount,
+        missing_documents=missing_documents,
+        policy_reference=policy_reference,
+        confidence=confidence,
         explanation=final_message
     )
 
     state["decision"] = result.model_dump()
-    
-    print("\nFINAL MESSAGE OBJECT")
-    print(state["messages"][-1])
-
-    print("\nFINAL CONTENT")
-    print(state["messages"][-1].content)
 
     state["audit_log"].append("Structured output generated")
 

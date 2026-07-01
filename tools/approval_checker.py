@@ -27,29 +27,23 @@ def approval_checker(stay: float, food: float, travel: float, manager_approval: 
     if total_amount > director_limit:
 
         if not director_approval:
-            result_d={
+
+            return {
                 "status": "FAIL",
                 "reason": "Director approval required"
             }
 
-            print(result_d)
-            return result_d
-
     elif total_amount > manager_limit:
 
         if not manager_approval:
-            result_m={
+
+            return {
                 "status": "FAIL",
                 "reason": "Manager approval required"
             }
 
-            print(result_m)
-            return result_m
 
-    result_p={
+    return {
         "status": "PASS",
         "reason": "Approval requirements satisfied"
     }
-
-    print(result_p)
-    return result_p
